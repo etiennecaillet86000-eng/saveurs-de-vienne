@@ -1,12 +1,82 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-    <meta charset="UTF-8">
-    <title>Saveurs de Vienne</title>
+  <meta charset="UTF-8">
+  <title>Saveurs de Vienne - Application</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f1ec;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #4a3728;
+      color: white;
+      padding: 15px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header h1 {
+      font-size: 18px;
+      margin: 0;
+    }
+    #bouton-deconnexion {
+      background: white;
+      color: #4a3728;
+      border: none;
+      padding: 8px 15px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    main {
+      padding: 30px;
+    }
+  </style>
 </head>
 <body>
-    <!-- Titre principal affiché sur la page -->
-    <h1>Saveurs de Vienne</h1>
-    <p>Bienvenue dans l'application de gestion du food truck et traiteur.</p>
+
+  <header>
+    <h1>🍽️ Saveurs de Vienne - Espace de gestion</h1>
+    <button id="bouton-deconnexion" onclick="seDeconnecter()">Déconnexion</button>
+  </header>
+
+  <main>
+    <p id="message-accueil">Chargement...</p>
+    <!-- Le reste de l'application (stock, recettes, finance) viendra ici plus tard -->
+  </main>
+
+  <script>
+    // Connexion à notre projet Supabase
+    const urlSupabase = "https://xvphcnqwewvbtwkmjfyk.supabase.co";
+    const cleSupabase = "sb_publishable_b5HZBdrgl58lC5_bdVmWaQ_4_GE3F0h";
+    const supabase = window.supabase.createClient(urlSupabase, cleSupabase);
+
+    // Fonction qui vérifie si l'utilisateur est bien connecté
+    async function verifierConnexion() {
+      const { data } = await supabase.auth.getSession();
+
+      if (!data.session) {
+        // Si personne n'est connecté, on renvoie vers la page de connexion
+        window.location.href = "connexion.html";
+      } else {
+        // Si connecté, on affiche un message de bienvenue avec l'email
+        document.getElementById("message-accueil").textContent =
+          "Bienvenue, " + data.session.user.email + " !";
+      }
+    }
+
+    // Fonction pour se déconnecter
+    async function seDeconnecter() {
+      await supabase.auth.signOut();
+      window.location.href = "connexion.html";
+    }
+
+    // On vérifie la connexion dès que la page se charge
+    verifierConnexion();
+  </script>
+
 </body>
 </html>
