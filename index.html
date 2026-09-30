@@ -2,81 +2,98 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Saveurs de Vienne - Application</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      background: #f4f1ec;
-      margin: 0;
-      padding: 0;
-    }
-    header {
-      background: #4a3728;
-      color: white;
-      padding: 15px 30px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-    }
-    header h1 {
-      font-size: 18px;
-      margin: 0;
-    }
-    #bouton-deconnexion {
-      background: white;
-      color: #4a3728;
-      border: none;
-      padding: 8px 15px;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    main {
-      padding: 30px;
-    }
+    body { font-family: Arial, sans-serif; background: #f4f1ec; margin: 0; padding: 0; color: #2f241c; }
+    header { background: #4a3728; color: white; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; gap: 20px; }
+    header h1 { font-size: 18px; margin: 0; }
+    #bouton-deconnexion { background: white; color: #4a3728; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+    #bouton-deconnexion:hover { background: #eadfd5; }
+    main { padding: 30px; max-width: 900px; margin: 0 auto; }
+    #message-accueil { font-size: 18px; }
+    #message-erreur { color: #b00020; background: #ffe9ed; padding: 12px; border-radius: 5px; display: none; }
   </style>
 </head>
 <body>
-
   <header>
     <h1>🍽️ Saveurs de Vienne - Espace de gestion</h1>
-    <button id="bouton-deconnexion" onclick="seDeconnecter()">Déconnexion</button>
+    <button id="bouton-deconnexion" type="button">Déconnexion</button>
   </header>
-
   <main>
-    <p id="message-accueil">Chargement...</p>
-    <!-- Le reste de l'application (stock, recettes, finance) viendra ici plus tard -->
+    <p id="message-accueil" aria-live="polite">Chargement...</p>
+    <p id="message-erreur" role="alert"></p>
   </main>
-
   <script>
-    // Connexion à notre projet Supabase
-    const urlSupabase = "https://xvphcnqwewvbtwkmjfyk.supabase.co";
-    const cleSupabase = "sb_publishable_b5HZBdrgl58lC5_bdVmWaQ_4_GE3F0h";
-    const supabase = window.supabase.createClient(urlSupabase, cleSupabase);
+    // Adresse et clé publique de notre projet Supabase
+    const URL_SUPABASE = "https://xvphcnqwewvbtwkmjfyk.supabase.co";
+    const CLE_SUPABASE = "sb_publishable_b5HZBdrgl58lC5_bdVmWaQ_4_GE3F0h";
 
-    // Fonction qui vérifie si l'utilisateur est bien connecté
-    async function verifierConnexion() {
-      const { data } = await supabase.auth.getSession();
+    const messageAccueil = document.getElementById("message-accueil");
+    const messageErreur = document.getElementById("message-erreur");
+    const boutonDeconnexion = document.getElementById("bouton-deconnexion");
 
-      if (!data.session) {
-        // Si personne n'est connecté, on renvoie vers la page de connexion
-        window.location.href = "connexion.html";
-      } else {
-        // Si connecté, on affiche un message de bienvenue avec l'email
-        document.getElementById("message-accueil").textContent =
-          "Bienvenue, " + data.session.user.email + " !";
+    if (!window.supabase || typeof window.supabase.createClient !== "function") {
+      // La bibliothèque Supabase n'a pas pu être téléchargée depuis le CDN
+      messageAccueil.textContent = "Impossible de charger la bibliothèque Supabase.";
+      messageErreur.textContent = "Vérifiez votre connexion Internet.";
+      messageErreur.style.display = "block";
+      boutonDeconnexion.style.display = "none";
+    } else {
+      const clientSupabase = window.supabase.createClient(URL_SUPABASE, CLE_SUPABASE);
+
+      function afficherErreur(message) {
+        messageAccueil.textContent = "Une erreur est survenue.";
+        messageErreur.textContent = message;
+        messageErreur.style.display = "block";
       }
-    }
 
-    // Fonction pour se déconnecter
-    async function seDeconnecter() {
-      await supabase.auth.signOut();
-      window.location.href = "connexion.html";
-    }
+      // Vérifie si un utilisateur est déjà connecté
+      async function verifierConnexion() {
+        try {
+          const resultat = await clientSupabase.auth.getSession();
+          if (resultat.error) throw resultat.error;
 
-    // On vérifie la connexion dès que la page se charge
-    verifierConnexion();
+          const session = resultat.data.session;
+          if (!session || !session.user) {
+            window.location.replace("connexion.html");
+            return;
+          }
+
+          const email = session.user.email || "utilisateur";
+          messageAccueil.textContent = "Bienvenue, " + email + " !";
+        } catch (erreur) {
+          console.error("Erreur de session :", erreur);
+          afficherErreur("La connexion à Supabase a échoué : " + erreur.message);
+        }
+      }
+
+      // Surveille les changements de connexion/déconnexion
+      clientSupabase.auth.onAuthStateChange(function (evenement, session) {
+        if (evenement === "SIGNED_OUT" || !session) {
+          window.location.replace("connexion.html");
+        }
+      });
+
+      // Bouton de déconnexion
+      boutonDeconnexion.addEventListener("click", async function () {
+        boutonDeconnexion.disabled = true;
+        boutonDeconnexion.textContent = "Déconnexion...";
+        try {
+          const resultat = await clientSupabase.auth.signOut();
+          if (resultat.error) throw resultat.error;
+          window.location.replace("connexion.html");
+        } catch (erreur) {
+          console.error("Erreur de déconnexion :", erreur);
+          boutonDeconnexion.disabled = false;
+          boutonDeconnexion.textContent = "Déconnexion";
+          afficherErreur("La déconnexion a échoué.");
+        }
+      });
+
+      verifierConnexion();
+    }
   </script>
-
 </body>
 </html>
